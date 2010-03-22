@@ -1,0 +1,145 @@
+plugin.tx_lonewsaddress_pi1 {
+    API_KEY = TEXT
+    API_KEY.value = ABQIAAAAx0zE4ZviawOYjwRPkAqzKRS9dLbFTjWje0lbpy7ODaOrADAoBhSbpFErjfQHUKm80B5ImCBbfWWT-w
+    address = TEXT
+    address.value = {field:tx_lonewsaddress_address}, {field:tx_lonewsaddress_zip} {field:tx_lonewsaddress_city}, {field:tx_lonewsaddress_country}
+    address.insertData = 1
+    height = TEXT
+    height.value = {$plugin.lonewsaddress.singleWidth} 
+    width = TEXT
+    width.value = {$plugin.lonewsaddress.singleHeight} 
+    zoom = TEXT
+    zoom.value = {$plugin.lonewsaddress.singleZoom} 
+    alttext = TEXT
+    alttext {
+      field = tx_lonewsaddress_mapname
+      ifEmpty.cObject = TEXT
+      ifEmpty.cObject.value = {field:tx_lonewsaddress_address}, {field:tx_lonewsaddress_zip} {field:tx_lonewsaddress_city}, {field:tx_lonewsaddress_country}
+      ifEmpty.cObject.insertData = 1
+    }
+    lon = TEXT
+    lon.field = tx_lonewsaddress_lng
+    lat = TEXT
+    lat.field = tx_lonewsaddress_lat
+    marker = IMAGE
+    marker {
+      file = 
+	  }
+    MAPICON = CONTENT
+    MAPICON {
+      table = tx_rggooglemap_cat
+      select {
+        pidInList = 96
+        where = 1=1
+        andWhere = uid={field:tx_lonewsaddress_cat}
+        andWhere.insertData = 1
+      }
+      renderObj = IMG_RESOURCE
+      renderObj {
+	      file{
+	        import = uploads/tx_rggooglemap/
+	        import.field = image
+	        import.listNum = 0
+	      }
+      }
+    }
+    newsPlugin < plugin.tt_news
+    newsPlugin {
+			code >
+			code = SINGLE,LIST,ARCHIVE
+			limit = 100
+		}
+}
+
+plugin.tt_news.lonewsaddress {
+  marks {
+    MAP < plugin.tx_lonewsaddress_pi1
+    ADDRESS = TEXT
+    ADDRESS.field = tx_lonewsaddress_address
+    ZIP = TEXT
+    ZIP.field = tx_lonewsaddress_zip
+    CITY = TEXT
+    CITY.field = tx_lonewsaddress_city
+    CONTACT_FORM = COA
+    CONTACT_FORM {
+      10 = TEXT
+      10 {
+	      value = {$plugin.lonewsaddress.contactPID}Contact
+	      typolink.parameter = {$plugin.lonewsaddress.contactPID}
+	      if.isTrue = {$plugin.lonewsaddress.contactPID}
+      }
+      20 = TEXT
+      20 {
+	      value = {$plugin.lonewsaddress.contactPID}<b style="background: #fff; color: #f00"> Error: Please insert contactPID in constant area to use contact form, or remove ###CONTACT_FORM###-Marker</b>
+	      if.isFalse = {$plugin.lonewsaddress.contactPID}
+      }
+      if.isTrue.field = tx_lonewsaddress_email
+    }
+    S_STANDART = TEXT
+    S_STANDART{
+      required = 1
+      wrap = |<br />
+    }
+    S_ADDRESS < .S_STANDART
+    S_ADDRESS.field = tx_lonewsaddress_address
+    S_ZIP = TEXT
+    S_ZIP.field = tx_lonewsaddress_zip
+    S_CITY = TEXT
+    S_CITY {
+      field = tx_lonewsaddress_city
+      wrap = |<br />
+      ifEmpty = Berlin
+    }
+    LNG = TEXT
+    LNG.field = tx_lonewsaddress_lng
+    LAT = TEXT
+    LAT.field = tx_lonewsaddress_lat
+    S_EMAIL < .S_STANDART
+    S_EMAIL {
+      field = tx_lonewsaddress_email
+      typolink.parameter.field = tx_lonewsaddress_email
+    }
+    S_PHONE < .S_STANDART
+    S_PHONE.field = tx_lonewsaddress_phone
+    S_HOURS < .S_STANDART
+    S_HOURS.field = tx_lonewsaddress_hours
+    S_URL < .S_STANDART
+    S_URL {
+	    field = tx_lonewsaddress_url
+	    required = 1
+	    innerWrap.wrap = http://|
+	    typolink.parameter.field = tx_lonewsaddress_url
+	    typolink.target = _blank
+    }
+    S_LOGO = IMAGE
+    S_LOGO {
+      file{
+        import = uploads/tx_lonewsaddress/
+        import.field = tx_lonewsaddress_logo
+        import.listNum = 0
+        maxH = 100
+        maxW = 150
+      }
+      stdWrap.typolink.parameter.field = tx_lonewsaddress_url
+    }
+    MINI_LOGO = COA
+    MINI_LOGO {
+      10 = IMG_RESOURCE
+	    10 {
+	      file{
+	        import = uploads/tx_lonewsaddress/
+	        import.field = tx_lonewsaddress_logo
+	        import.listNum = 0
+	        maxH = 50
+	        maxW = 50
+	      }
+	    }
+	    stdWrap.required = 1
+	    stdWrap.wrap = <image src=\"|\" alt=\"logo\" style=\"float:left\"/>
+    }
+    MAPKEY = TEXT
+    MAPKEY.value = ABQIAAAAx0zE4ZviawOYjwRPkAqzKRR8452PgRoAOh1kz3N9AmX_PmxLihSVHKQZDrtyGColkARv0Y4rWYR4GA
+    URL < .S_URL
+  }
+}
+

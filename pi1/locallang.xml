@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<T3locallang>
+	<meta type="array">
+		<type>module</type>
+		<description>Language labels for plugin &quot;tx_lonewsaddress_pi1&quot;</description>
+	</meta>
+	<data type="array">
+		<languageKey index="default" type="array">
+							<label index="dir_to">Start address: (include addr, city st/region)</label>
+							<label index="to_button_value">Get Directions</label>
+							<label index="to_button_type">submit</label>
+							<label index="dir_from">End address: (include addr, city st/region)</label>
+							<label index="from_button_value">Get Directions</label>
+							<label index="from_button_type">submit</label>
+							<label index="dir_text">Directions: </label>
+							<label index="dir_tohere">To here</label>
+							<label index="dir_fromhere">From here</label>
+							<label index="screen_alttext">Open address in Google Maps</label>
+		</languageKey>
+		<languageKey index="de" type="array">
+							<label index="dir_to">Start-Adresse: (Strasse, Stadt)</label>
+							<label index="to_button_value">suchen</label>
+							<label index="to_button_type">submit</label>
+							<label index="dir_from">Ziel-Adresse: (Strasse, Stadt)</label>
+							<label index="from_button_value">suchen</label>
+							<label index="from_button_type">submit</label>
+							<label index="dir_text">Wegbeschreibung: </label>
+							<label index="dir_tohere">nach hier</label>
+							<label index="dir_fromhere">von hier</label>
+							<label index="screen_alttext">Adresse in Google Maps öffnen</label>
+		</languageKey>
+	</data>
+</T3locallang>

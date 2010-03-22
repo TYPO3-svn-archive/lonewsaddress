@@ -1,0 +1,10 @@
+plugin.lonewsaddress {
+  # cat=plugin.tx_lonewsaddress/basic/110; type=int+; label= Page ID of contact-form
+  contactPID = 0
+  # cat=plugin.tx_lonewsaddress/basic/120; type=int+; label= Width of Map in Singleview
+  singleWidth = 400
+  # cat=plugin.tx_lonewsaddress/basic/130; type=int+; label= Width of Map in Singleview
+  singleHeight = 400
+  # cat=plugin.tx_lonewsaddress/basic/140; type=int+; label= Zoom in Singleview
+  singleZoom = 14
+}

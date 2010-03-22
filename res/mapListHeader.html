@@ -1,0 +1,853 @@
+	<!-- ###TEMPLATE_LIST### begin
+	This is the template for the list of news in the archive or news page or search
+-->
+	
+	<div id="mapAll" class="tx_locator_map" style="width: 600px; height: 400px;"></div>
+								<script type="text/javascript">
+
+
+function popUp(URL)
+{
+day = new Date();
+id = day.getTime();
+eval("page" + id + " = window.open(URL, '" + id + "', 'toolbar=1,scrollbars=1,location=1,statusbar=1,menubar=1,resizable=1,width=800,height=600,left = 112,top = 84');");
+}
+</script>
+								<script src="http://maps.google.com/maps?file=api&amp;v=2.x&amp;key=ABQIAAAAx0zE4ZviawOYjwRPkAqzKRR8452PgRoAOh1kz3N9AmX_PmxLihSVHKQZDrtyGColkARv0Y4rWYR4GA" type="text/javascript"></script>
+								<script type="text/javascript">
+//<![CDATA[
+
+// v=2.61 was the old api version
+// v=2.81 new api with GDirections
+
+//var gdir;
+
+var gmarkers = [];
+var htmls = [];
+var i = 0;
+// arrays to hold variants of the info window html with get direction forms open
+var to_htmls = [];
+var from_htmls = [];
+var infoWindowId = -1;
+
+function handleErrors(){
+	   if (gdir.getStatus().code == G_GEO_UNKNOWN_ADDRESS)
+	     alert("No corresponding geographic location could be found for one of the specified addresses. This may be due to the fact that the address is relatively new, or it may be incorrect.nError code: " + gdir.getStatus().code);
+	   else if (gdir.getStatus().code == G_GEO_SERVER_ERROR)
+	     alert("A geocoding or directions request could not be successfully processed, yet the exact reason for the failure is not known.n Error code: " + gdir.getStatus().code);
+
+	   else if (gdir.getStatus().code == G_GEO_MISSING_QUERY)
+	     alert("The HTTP q parameter was either missing or had no value. For geocoder requests, this means that an empty address was specified as input. For directions requests, this means that no query was specified in the input.n Error code: " + gdir.getStatus().code);
+
+	//   else if (gdir.getStatus().code == G_UNAVAILABLE_ADDRESS)  <--- Doc bug... this is either not defined, or Doc is wrong
+	//     alert("The geocode for the given address or the route for the given directions query cannot be returned due to legal or contractual reasons.n Error code: " + gdir.getStatus().code);
+
+	   else if (gdir.getStatus().code == G_GEO_BAD_KEY)
+	     alert("The given key is either invalid or does not match the domain for which it was given. n Error code: " + gdir.getStatus().code);
+
+	   else if (gdir.getStatus().code == G_GEO_BAD_REQUEST)
+	     alert("A directions request could not be successfully parsed.n Error code: " + gdir.getStatus().code);
+
+	   else alert("An unknown error occurred.");
+
+}
+
+
+
+function load(){
+
+    var myPano;
+    var panoClient;
+    panoClient = new GStreetviewClient();
+
+  	var sidebar_html = "";
+	var lon;
+	var lat;
+	var point = new GPoint(13.41790275,52.51984285);
+	var marker;
+
+	//      var map = new GMap(document.getElementById("map"));
+    var map = new GMap2(document.getElementById("mapAll"));
+    map.addControl(new GLargeMapControl());
+    map.addControl(new GMapTypeControl());
+    map.addControl(new GScaleControl());
+
+	map.addMapType(G_PHYSICAL_MAP);
+	// map.enableGoogleBar();
+
+
+
+	// Create the custom Green icon.  Google only provides red, so I've modified it with a different color.
+	var icon = new GIcon();
+
+	icon.iconSize = new GSize(18,18);
+	icon.shadowSize = new GSize(37, 34);
+	//icon.iconAnchor = new GPoint(9, 34);
+	icon.iconAnchor = new GPoint(9, 34);
+	icon.infoWindowAnchor = new GPoint(9, 2);
+	icon.infoShadowAnchor = new GPoint(18, 25);
+	icon.image = "typo3conf/ext/locator/pi1/icons/pointerRed.gif";
+
+	display_image_in_balloon = 'on';
+
+
+    // This function picks up the click and opens the corresponding info window
+    function myclick(i) {
+    	gmarkers[i].openInfoWindowHtml('<div  class=googleMapBalloonBody>'+htmls[i]+'</div>');
+  	}
+
+  	// functions that open the directions forms
+  	function tohere(i) {
+    	gmarkers[i].openInfoWindowHtml('<div  class=googleMapBalloonBody>'+ to_htmls[i]+'</div>');
+  	}
+  	function fromhere(i) {
+    	gmarkers[i].openInfoWindowHtml('<div  class=googleMapBalloonBody>'+ from_htmls[i] +'</div>');
+  	}
+
+
+    function showPanoData(panoData) {
+      if (panoData.code != 200) {
+        //GLog.write('showPanoData: Server rejected with code: ' + panoData.code);
+		document.getElementById('pano').style.display = 'none';
+		return;
+      }
+      var angle = computeAngle(marker.getLatLng(), panoData.location.latlng);
+      myPano.setLocationAndPOV(panoData.location.latlng, {yaw: angle});
+    }
+
+    function computeAngle(endLatLng, startLatLng) {
+      var DEGREE_PER_RADIAN = 57.2957795;
+      var RADIAN_PER_DEGREE = 0.017453;
+
+      var dlat = endLatLng.lat() - startLatLng.lat();
+      var dlng = endLatLng.lng() - startLatLng.lng();
+      // We multiply dlng with cos(endLat), since the two points are very closeby,
+      // so we assume their cos values are approximately equal.
+      var yaw = Math.atan2(dlng * Math.cos(endLatLng.lat() * RADIAN_PER_DEGREE), dlat)
+             * DEGREE_PER_RADIAN;
+      return wrapAngle(yaw);
+   }
+
+   function wrapAngle(angle) {
+    if (angle >= 360) {
+      angle -= 360;
+    } else if (angle < 0) {
+     angle += 360;
+    }
+    return angle;
+  };
+
+
+	//map.centerAndZoom(new GPoint(13.41790275, 52.51984285), 8);
+	map.setCenter(new GLatLng(52.51984285, 13.41790275), 17 - 8);
+
+	// streetview overlay
+	// have to be after function map.setCenter
+	if (0) {
+		svOverlay = new GStreetviewOverlay();
+		map.addOverlay(svOverlay);
+	}
+
+	// inserted by php
+
+		lon = 13.3135701;
+    lat = 52.5121427;
+    point = new GPoint(lon,lat);'Bismarckstr. 20,###CITTY###, 10625 ';
+  	icon1 = new GIcon();
+    icon1.image = "";
+		icon1.iconSize = new GSize(18,18);
+		icon1.shadowSize = new GSize(37, 34);
+		icon1.iconAnchor = new GPoint(9, 18);
+		icon1.infoWindowAnchor = new GPoint(9, 2);
+		icon1.infoShadowAnchor = new GPoint(18, 25);
+		marker1 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon1});
+		html1 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba1= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/1-staatlich.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/1-staatlich.html" >1. Staatl. Fachschule für Sozialpädagogik/Berufsfachschule für Sozialwesen</a></b><br />Bismarckstr. 20<br />10625 Berlin<br /><br/><a href="http://erzieherinnenausbildung-berlin.de/home/index.html" target="_top" >erzieherinnenausbildung-berlin.de/home/index.html</a></div>');
+		tabb1= new GInfoWindowTab('Weiteres', '');
+		tabArray1 = new Array (taba1);
+		GEvent.addListener(marker1, 'click', function() {
+		  marker1.openInfoWindowHtml(html1,{maxWidth:150});
+		});
+		GEvent.addListener(marker1, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 1;
+		});
+		GEvent.addListener(marker1, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[1] = marker1;
+
+		GEvent.addListener(marker1, 'mouseover', function() {if (infoWindowId != 1)
+				marker1.openInfoWindowTabsHtml(tabArray1,{maxWidth:200});});
+			map.addOverlay(marker1);
+
+
+		lon = 13.4446768;
+    lat = 52.4437205;
+    point = new GPoint(lon,lat);'Paster-Behrens-Str. 88,###CITTY###, 12359 ';
+  	icon2 = new GIcon();
+    icon2.image = "";
+		icon2.iconSize = new GSize(18,18);
+		icon2.shadowSize = new GSize(37, 34);
+		icon2.iconAnchor = new GPoint(9, 18);
+		icon2.infoWindowAnchor = new GPoint(9, 2);
+		icon2.infoShadowAnchor = new GPoint(18, 25);
+		marker2 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon2});
+		html2 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba2= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/annedore-leb.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/annedore-leb.html" >Annedore-Leber-Oberschule</a></b><br />Paster-Behrens-Str. 88<br />12359 Berlin<br /><br/><a href="http://www.alo-berlin.de" target="_top" >www.alo-berlin.de</a></div>');
+		tabb2= new GInfoWindowTab('Weiteres', '');
+		tabArray2 = new Array (taba2);
+		GEvent.addListener(marker2, 'click', function() {
+		  marker2.openInfoWindowHtml(html2,{maxWidth:150});
+		});
+		GEvent.addListener(marker2, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 2;
+		});
+		GEvent.addListener(marker2, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[2] = marker2;
+
+		GEvent.addListener(marker2, 'mouseover', function() {if (infoWindowId != 2)
+				marker2.openInfoWindowTabsHtml(tabArray2,{maxWidth:200});});
+			map.addOverlay(marker2);
+
+
+		lon = 13.4496678;
+    lat = 52.5026351;
+    point = new GPoint(lon,lat);'Naglerstr. 1-3,###CITTY###, 10245 ';
+  	icon3 = new GIcon();
+    icon3.image = "";
+		icon3.iconSize = new GSize(18,18);
+		icon3.shadowSize = new GSize(37, 34);
+		icon3.iconAnchor = new GPoint(9, 18);
+		icon3.infoWindowAnchor = new GPoint(9, 2);
+		icon3.infoShadowAnchor = new GPoint(18, 25);
+		marker3 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon3});
+		html3 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba3= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/august-sande.html" >August-Sander-Schule</a></b><br />Naglerstr. 1-3<br />10245 Berlin<br /><br/><a href="http://www.august-sander-schule.cidsnet.de/" target="_top" >www.august-sander-schule.cidsnet.de/</a></div>');
+		tabb3= new GInfoWindowTab('Weiteres', '');
+		tabArray3 = new Array (taba3);
+		GEvent.addListener(marker3, 'click', function() {
+		  marker3.openInfoWindowHtml(html3,{maxWidth:150});
+		});
+		GEvent.addListener(marker3, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 3;
+		});
+		GEvent.addListener(marker3, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[3] = marker3;
+
+		GEvent.addListener(marker3, 'mouseover', function() {if (infoWindowId != 3)
+				marker3.openInfoWindowTabsHtml(tabArray3,{maxWidth:200});});
+			map.addOverlay(marker3);
+
+
+		lon = 13.4000948;
+    lat = 52.5937056;
+    point = new GPoint(lon,lat);'Erbeskopfweg 8-10,###CITTY###, 13158 ';
+  	icon4 = new GIcon();
+    icon4.image = "";
+		icon4.iconSize = new GSize(18,18);
+		icon4.shadowSize = new GSize(37, 34);
+		icon4.iconAnchor = new GPoint(9, 18);
+		icon4.infoWindowAnchor = new GPoint(9, 2);
+		icon4.infoShadowAnchor = new GPoint(18, 25);
+		marker4 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon4});
+		html4 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba4= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/berufliche-s.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/berufliche-s.html" >Berufliche Schule für Sozialwesen Pankow, Fachschulen für Sozialpädagogik, Heilerziehungspflege, Heilpädagogik</a></b><br />Erbeskopfweg 8-10<br />13158 Berlin<br /><br/></div>');
+		tabb4= new GInfoWindowTab('Weiteres', '');
+		tabArray4 = new Array (taba4);
+		GEvent.addListener(marker4, 'click', function() {
+		  marker4.openInfoWindowHtml(html4,{maxWidth:150});
+		});
+		GEvent.addListener(marker4, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 4;
+		});
+		GEvent.addListener(marker4, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[4] = marker4;
+
+		GEvent.addListener(marker4, 'mouseover', function() {if (infoWindowId != 4)
+				marker4.openInfoWindowTabsHtml(tabArray4,{maxWidth:200});});
+			map.addOverlay(marker4);
+
+
+		lon = 13.4228173;
+    lat = 52.4728052;
+    point = new GPoint(lon,lat);'Leinestr. 37-45,###CITTY###, 12049 ';
+  	icon5 = new GIcon();
+    icon5.image = "";
+		icon5.iconSize = new GSize(18,18);
+		icon5.shadowSize = new GSize(37, 34);
+		icon5.iconAnchor = new GPoint(9, 18);
+		icon5.infoWindowAnchor = new GPoint(9, 2);
+		icon5.infoShadowAnchor = new GPoint(18, 25);
+		marker5 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon5});
+		html5 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba5= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/carl-legien.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/carl-legien.html" >Carl-Legien-Oberschule</a></b><br />Leinestr. 37-45<br />12049 Berlin<br /><br/><a href="http://www.carl-legien-schule.de/" target="_top" >www.carl-legien-schule.de/</a></div>');
+		tabb5= new GInfoWindowTab('Weiteres', '');
+		tabArray5 = new Array (taba5);
+		GEvent.addListener(marker5, 'click', function() {
+		  marker5.openInfoWindowHtml(html5,{maxWidth:150});
+		});
+		GEvent.addListener(marker5, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 5;
+		});
+		GEvent.addListener(marker5, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[5] = marker5;
+
+		GEvent.addListener(marker5, 'mouseover', function() {if (infoWindowId != 5)
+				marker5.openInfoWindowTabsHtml(tabArray5,{maxWidth:200});});
+			map.addOverlay(marker5);
+
+
+		lon = 13.4733877;
+    lat = 52.5231945;
+    point = new GPoint(lon,lat);'Paul-Junius-Str. 15,###CITTY###, 10367 ';
+  	icon6 = new GIcon();
+    icon6.image = "";
+		icon6.iconSize = new GSize(18,18);
+		icon6.shadowSize = new GSize(37, 34);
+		icon6.iconAnchor = new GPoint(9, 18);
+		icon6.infoWindowAnchor = new GPoint(9, 2);
+		icon6.infoShadowAnchor = new GPoint(18, 25);
+		marker6 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon6});
+		html6 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba6= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/carl-von-lin.html" >Carl-von-Linné-Schule</a></b><br />Paul-Junius-Str. 15<br />10367 Berlin<br /><br/><a href="http://linne-schule.dyndns.org/joomla/" target="_top" >linne-schule.dyndns.org/joomla/</a></div>');
+		tabb6= new GInfoWindowTab('Weiteres', '');
+		tabArray6 = new Array (taba6);
+		GEvent.addListener(marker6, 'click', function() {
+		  marker6.openInfoWindowHtml(html6,{maxWidth:150});
+		});
+		GEvent.addListener(marker6, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 6;
+		});
+		GEvent.addListener(marker6, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[6] = marker6;
+
+		GEvent.addListener(marker6, 'mouseover', function() {if (infoWindowId != 6)
+				marker6.openInfoWindowTabsHtml(tabArray6,{maxWidth:200});});
+			map.addOverlay(marker6);
+
+
+		lon = 13.2635954;
+    lat = 52.500358;
+    point = new GPoint(lon,lat);'Waldschulallee 29,###CITTY###, 14055 ';
+  	icon7 = new GIcon();
+    icon7.image = "";
+		icon7.iconSize = new GSize(18,18);
+		icon7.shadowSize = new GSize(37, 34);
+		icon7.iconAnchor = new GPoint(9, 18);
+		icon7.infoWindowAnchor = new GPoint(9, 2);
+		icon7.infoShadowAnchor = new GPoint(18, 25);
+		marker7 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon7});
+		html7 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba7= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/ernst-adolf.html" >Ernst-Adolf-Eschke-Schule</a></b><br />Waldschulallee 29<br />14055 Berlin<br /><br/><a href="http://www.eaeschule.de/" target="_top" >www.eaeschule.de/</a></div>');
+		tabb7= new GInfoWindowTab('Weiteres', '');
+		tabArray7 = new Array (taba7);
+		GEvent.addListener(marker7, 'click', function() {
+		  marker7.openInfoWindowHtml(html7,{maxWidth:150});
+		});
+		GEvent.addListener(marker7, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 7;
+		});
+		GEvent.addListener(marker7, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[7] = marker7;
+
+		GEvent.addListener(marker7, 'mouseover', function() {if (infoWindowId != 7)
+				marker7.openInfoWindowTabsHtml(tabArray7,{maxWidth:200});});
+			map.addOverlay(marker7);
+
+
+		lon = 13.4034617;
+    lat = 52.4990029;
+    point = new GPoint(lon,lat);'Lobeckstr. 76-81,###CITTY###, 10969 ';
+  	icon8 = new GIcon();
+    icon8.image = "";
+		icon8.iconSize = new GSize(18,18);
+		icon8.shadowSize = new GSize(37, 34);
+		icon8.iconAnchor = new GPoint(9, 18);
+		icon8.infoWindowAnchor = new GPoint(9, 2);
+		icon8.infoShadowAnchor = new GPoint(18, 25);
+		marker8 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon8});
+		html8 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba8= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/hans-boeckle.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/hans-boeckle.html" >Hans-Böckler-Schule, <acronym title="Oberstufenzentrum">OSZ</acronym> Konstruktionsbautechnik</a></b><br />Lobeckstr. 76-81<br />10969 Berlin<br /><br/><a href="http://www.osz-kt.de" target="_top" >www.osz-kt.de</a></div>');
+		tabb8= new GInfoWindowTab('Weiteres', '');
+		tabArray8 = new Array (taba8);
+		GEvent.addListener(marker8, 'click', function() {
+		  marker8.openInfoWindowHtml(html8,{maxWidth:150});
+		});
+		GEvent.addListener(marker8, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 8;
+		});
+		GEvent.addListener(marker8, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[8] = marker8;
+
+		GEvent.addListener(marker8, 'mouseover', function() {if (infoWindowId != 8)
+				marker8.openInfoWindowTabsHtml(tabArray8,{maxWidth:200});});
+			map.addOverlay(marker8);
+
+
+		lon = 13.3153694;
+    lat = 52.4557537;
+    point = new GPoint(lon,lat);'Rothenburgerstr. 14,###CITTY###, 12165 ';
+  	icon9 = new GIcon();
+    icon9.image = "";
+		icon9.iconSize = new GSize(18,18);
+		icon9.shadowSize = new GSize(37, 34);
+		icon9.iconAnchor = new GPoint(9, 18);
+		icon9.infoWindowAnchor = new GPoint(9, 2);
+		icon9.infoShadowAnchor = new GPoint(18, 25);
+		marker9 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon9});
+		html9 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba9= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/johann-augus.html" >Johann-August-Zeune-Schule</a></b><br />Rothenburgerstr. 14<br />12165 Berlin<br /><br/><a href="http://www.blindenschule-berlin.de/" target="_top" >www.blindenschule-berlin.de/</a></div>');
+		tabb9= new GInfoWindowTab('Weiteres', '');
+		tabArray9 = new Array (taba9);
+		GEvent.addListener(marker9, 'click', function() {
+		  marker9.openInfoWindowHtml(html9,{maxWidth:150});
+		});
+		GEvent.addListener(marker9, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 9;
+		});
+		GEvent.addListener(marker9, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[9] = marker9;
+
+		GEvent.addListener(marker9, 'mouseover', function() {if (infoWindowId != 9)
+				marker9.openInfoWindowTabsHtml(tabArray9,{maxWidth:200});});
+			map.addOverlay(marker9);
+
+
+		lon = 13.3332697;
+    lat = 52.4828503;
+    point = new GPoint(lon,lat);'Prinzregentenstr. 60,###CITTY###, 10715 ';
+  	icon10 = new GIcon();
+    icon10.image = "";
+		icon10.iconSize = new GSize(18,18);
+		icon10.shadowSize = new GSize(37, 34);
+		icon10.iconAnchor = new GPoint(9, 18);
+		icon10.infoWindowAnchor = new GPoint(9, 2);
+		icon10.infoShadowAnchor = new GPoint(18, 25);
+		marker10 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon10});
+		html10 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba10= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/klaere-bloch.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/klaere-bloch.html" >Kläre-Bloch-Schule</a></b><br />Prinzregentenstr. 60<br />10715 Berlin<br /><br/><a href="http://www.klaere-bloch-schule.de" target="_top" >www.klaere-bloch-schule.de</a></div>');
+		tabb10= new GInfoWindowTab('Weiteres', '');
+		tabArray10 = new Array (taba10);
+		GEvent.addListener(marker10, 'click', function() {
+		  marker10.openInfoWindowHtml(html10,{maxWidth:150});
+		});
+		GEvent.addListener(marker10, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 10;
+		});
+		GEvent.addListener(marker10, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[10] = marker10;
+
+		GEvent.addListener(marker10, 'mouseover', function() {if (infoWindowId != 10)
+				marker10.openInfoWindowTabsHtml(tabArray10,{maxWidth:200});});
+			map.addOverlay(marker10);
+
+
+		lon = 13.3938932;
+    lat = 52.5768525;
+    point = new GPoint(lon,lat);'Hermann-Hesse-Str. 34/36,###CITTY###, 13156 ';
+  	icon11 = new GIcon();
+    icon11.image = "";
+		icon11.iconSize = new GSize(18,18);
+		icon11.shadowSize = new GSize(37, 34);
+		icon11.iconAnchor = new GPoint(9, 18);
+		icon11.infoWindowAnchor = new GPoint(9, 2);
+		icon11.infoShadowAnchor = new GPoint(18, 25);
+		marker11 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon11});
+		html11 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba11= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/konrad-zuse.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/konrad-zuse.html" >Konrad-Zuse-Schule</a></b><br />Hermann-Hesse-Str. 34/36<br />13156 Berlin<br /><br/><a href="http://www.sb-ol-pankow.cidsnet.de/" target="_top" >www.sb-ol-pankow.cidsnet.de/</a></div>');
+		tabb11= new GInfoWindowTab('Weiteres', '');
+		tabArray11 = new Array (taba11);
+		GEvent.addListener(marker11, 'click', function() {
+		  marker11.openInfoWindowHtml(html11,{maxWidth:150});
+		});
+		GEvent.addListener(marker11, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 11;
+		});
+		GEvent.addListener(marker11, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[11] = marker11;
+
+		GEvent.addListener(marker11, 'mouseover', function() {if (infoWindowId != 11)
+				marker11.openInfoWindowTabsHtml(tabArray11,{maxWidth:200});});
+			map.addOverlay(marker11);
+
+
+		lon = 13.3413429;
+    lat = 52.4959805;
+    point = new GPoint(lon,lat);'Vikoria-Luise-Platz 6,###CITTY###, 10777 ';
+  	icon12 = new GIcon();
+    icon12.image = "";
+		icon12.iconSize = new GSize(18,18);
+		icon12.shadowSize = new GSize(37, 34);
+		icon12.iconAnchor = new GPoint(9, 18);
+		icon12.infoWindowAnchor = new GPoint(9, 2);
+		icon12.infoShadowAnchor = new GPoint(18, 25);
+		marker12 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon12});
+		html12 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba12= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/lette-verein.html" >Lette-Verein</a></b><br />Vikoria-Luise-Platz 6<br />10777 Berlin<br /><br/><a href="http://www.lette-verein.de/#" target="_top" >www.lette-verein.de/#</a></div>');
+		tabb12= new GInfoWindowTab('Weiteres', '');
+		tabArray12 = new Array (taba12);
+		GEvent.addListener(marker12, 'click', function() {
+		  marker12.openInfoWindowHtml(html12,{maxWidth:150});
+		});
+		GEvent.addListener(marker12, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 12;
+		});
+		GEvent.addListener(marker12, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[12] = marker12;
+
+		GEvent.addListener(marker12, 'mouseover', function() {if (infoWindowId != 12)
+				marker12.openInfoWindowTabsHtml(tabArray12,{maxWidth:200});});
+			map.addOverlay(marker12);
+
+
+		lon = 13.3133334;
+    lat = 52.517292;
+    point = new GPoint(lon,lat);'Loschmidtstr. 19,###CITTY###, 10587 ';
+  	icon13 = new GIcon();
+    icon13.image = "";
+		icon13.iconSize = new GSize(18,18);
+		icon13.shadowSize = new GSize(37, 34);
+		icon13.iconAnchor = new GPoint(9, 18);
+		icon13.infoWindowAnchor = new GPoint(9, 2);
+		icon13.infoShadowAnchor = new GPoint(18, 25);
+		marker13 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon13});
+		html13 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba13= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/loschmidt-ob.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/loschmidt-ob.html" >Loschmidt-Oberschule</a></b><br />Loschmidtstr. 19<br />10587 Berlin<br /><br/><a href="http://www.loschmidt-oberschule.de/" target="_top" >www.loschmidt-oberschule.de/</a></div>');
+		tabb13= new GInfoWindowTab('Weiteres', '');
+		tabArray13 = new Array (taba13);
+		GEvent.addListener(marker13, 'click', function() {
+		  marker13.openInfoWindowHtml(html13,{maxWidth:150});
+		});
+		GEvent.addListener(marker13, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 13;
+		});
+		GEvent.addListener(marker13, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[13] = marker13;
+
+		GEvent.addListener(marker13, 'mouseover', function() {if (infoWindowId != 13)
+				marker13.openInfoWindowTabsHtml(tabArray13,{maxWidth:200});});
+			map.addOverlay(marker13);
+
+
+		lon = 13.364564;
+    lat = 52.4993948;
+    point = new GPoint(lon,lat);'Steinmetzstr. 79,###CITTY###, 10783 ';
+  	icon14 = new GIcon();
+    icon14.image = "";
+		icon14.iconSize = new GSize(18,18);
+		icon14.shadowSize = new GSize(37, 34);
+		icon14.iconAnchor = new GPoint(9, 18);
+		icon14.infoWindowAnchor = new GPoint(9, 2);
+		icon14.infoShadowAnchor = new GPoint(18, 25);
+		marker14 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon14});
+		html14 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba14= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/marie-elisab.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/marie-elisab.html" >Marie-Elisabeth-Lüders-Oberschule</a></b><br />Steinmetzstr. 79<br />10783 Berlin<br /><br/><a href="http://www.melo-berlin.de/" target="_top" >www.melo-berlin.de/</a></div>');
+		tabb14= new GInfoWindowTab('Weiteres', '');
+		tabArray14 = new Array (taba14);
+		GEvent.addListener(marker14, 'click', function() {
+		  marker14.openInfoWindowHtml(html14,{maxWidth:150});
+		});
+		GEvent.addListener(marker14, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 14;
+		});
+		GEvent.addListener(marker14, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[14] = marker14;
+
+		GEvent.addListener(marker14, 'mouseover', function() {if (infoWindowId != 14)
+				marker14.openInfoWindowTabsHtml(tabArray14,{maxWidth:200});});
+			map.addOverlay(marker14);
+
+
+		lon = 13.2390904;
+    lat = 52.6264632;
+    point = new GPoint(lon,lat);'Stolpmünder Weg 47,###CITTY###, 13503 ';
+  	icon15 = new GIcon();
+    icon15.image = "";
+		icon15.iconSize = new GSize(18,18);
+		icon15.shadowSize = new GSize(37, 34);
+		icon15.iconAnchor = new GPoint(9, 18);
+		icon15.infoWindowAnchor = new GPoint(9, 2);
+		icon15.infoShadowAnchor = new GPoint(18, 25);
+		marker15 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon15});
+		html15 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba15= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/martin-luthe.html" >Martin-Luther-King-Schule</a></b><br />Stolpmünder Weg 47<br />13503 Berlin<br /><br/></div>');
+		tabb15= new GInfoWindowTab('Weiteres', '');
+		tabArray15 = new Array (taba15);
+		GEvent.addListener(marker15, 'click', function() {
+		  marker15.openInfoWindowHtml(html15,{maxWidth:150});
+		});
+		GEvent.addListener(marker15, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 15;
+		});
+		GEvent.addListener(marker15, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[15] = marker15;
+
+		GEvent.addListener(marker15, 'mouseover', function() {if (infoWindowId != 15)
+				marker15.openInfoWindowTabsHtml(tabArray15,{maxWidth:200});});
+			map.addOverlay(marker15);
+
+
+		lon = 13.2487985;
+    lat = 52.4412812;
+    point = new GPoint(lon,lat);'Hartmannsweilerweg 29,###CITTY###, 14163 ';
+  	icon16 = new GIcon();
+    icon16.image = "";
+		icon16.iconSize = new GSize(18,18);
+		icon16.shadowSize = new GSize(37, 34);
+		icon16.iconAnchor = new GPoint(9, 18);
+		icon16.infoWindowAnchor = new GPoint(9, 2);
+		icon16.infoShadowAnchor = new GPoint(18, 25);
+		marker16 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon16});
+		html16 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba16= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/peter-lenne.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/peter-lenne.html" ><acronym title="Oberstufenzentrum">OSZ</acronym> Agrarwirtschaft</a></b><br />Hartmannsweilerweg 29<br />14163 Berlin<br /><br/><a href="http://www.peter-lenne-schule.de/" target="_top" >www.peter-lenne-schule.de/</a></div>');
+		tabb16= new GInfoWindowTab('Weiteres', '');
+		tabArray16 = new Array (taba16);
+		GEvent.addListener(marker16, 'click', function() {
+		  marker16.openInfoWindowHtml(html16,{maxWidth:150});
+		});
+		GEvent.addListener(marker16, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 16;
+		});
+		GEvent.addListener(marker16, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[16] = marker16;
+
+		GEvent.addListener(marker16, 'mouseover', function() {if (infoWindowId != 16)
+				marker16.openInfoWindowTabsHtml(tabArray16,{maxWidth:200});});
+			map.addOverlay(marker16);
+
+
+		lon = 13.3581377;
+    lat = 52.5236511;
+    point = new GPoint(lon,lat);'Alt Moabit 10,###CITTY###, 10557 ';
+  	icon17 = new GIcon();
+    icon17.image = "";
+		icon17.iconSize = new GSize(18,18);
+		icon17.shadowSize = new GSize(37, 34);
+		icon17.iconAnchor = new GPoint(9, 18);
+		icon17.infoWindowAnchor = new GPoint(9, 2);
+		icon17.infoShadowAnchor = new GPoint(18, 25);
+		marker17 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon17});
+		html17 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba17= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/osz-banken-u.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/osz-banken-u.html" ><acronym title="Oberstufenzentrum">OSZ</acronym> Banken und Versicherungen</a></b><br />Alt Moabit 10<br />10557 Berlin<br /><br/><a href="http://www.osz-banken-versicherungen.de" target="_top" >www.osz-banken-versicherungen.de</a></div>');
+		tabb17= new GInfoWindowTab('Weiteres', '');
+		tabArray17 = new Array (taba17);
+		GEvent.addListener(marker17, 'click', function() {
+		  marker17.openInfoWindowHtml(html17,{maxWidth:150});
+		});
+		GEvent.addListener(marker17, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 17;
+		});
+		GEvent.addListener(marker17, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[17] = marker17;
+
+		GEvent.addListener(marker17, 'mouseover', function() {if (infoWindowId != 17)
+				marker17.openInfoWindowTabsHtml(tabArray17,{maxWidth:200});});
+			map.addOverlay(marker17);
+
+
+		lon = 13.2407067;
+    lat = 52.5386842;
+    point = new GPoint(lon,lat);'Nonnendammallee 140-143,###CITTY###, 13599 ';
+  	icon18 = new GIcon();
+    icon18.image = "";
+		icon18.iconSize = new GSize(18,18);
+		icon18.shadowSize = new GSize(37, 34);
+		icon18.iconAnchor = new GPoint(9, 18);
+		icon18.infoWindowAnchor = new GPoint(9, 2);
+		icon18.infoShadowAnchor = new GPoint(18, 25);
+		marker18 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon18});
+		html18 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba18= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/knobelsdorff.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/knobelsdorff.html" ><acronym title="Oberstufenzentrum">OSZ</acronym> Bautechnik 1</a></b><br />Nonnendammallee 140-143<br />13599 Berlin<br /><br/><a href="http://www.knobelsdorff-schule.de/" target="_top" >www.knobelsdorff-schule.de/</a></div>');
+		tabb18= new GInfoWindowTab('Weiteres', '');
+		tabArray18 = new Array (taba18);
+		GEvent.addListener(marker18, 'click', function() {
+		  marker18.openInfoWindowHtml(html18,{maxWidth:150});
+		});
+		GEvent.addListener(marker18, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 18;
+		});
+		GEvent.addListener(marker18, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[18] = marker18;
+
+		GEvent.addListener(marker18, 'mouseover', function() {if (infoWindowId != 18)
+				marker18.openInfoWindowTabsHtml(tabArray18,{maxWidth:200});});
+			map.addOverlay(marker18);
+
+
+		lon = 13.4486504;
+    lat = 52.5597013;
+    point = new GPoint(lon,lat);'Gustav-Adolf-Str. 66,###CITTY###, 13086 ';
+  	icon19 = new GIcon();
+    icon19.image = "";
+		icon19.iconSize = new GSize(18,18);
+		icon19.shadowSize = new GSize(37, 34);
+		icon19.iconAnchor = new GPoint(9, 18);
+		icon19.infoWindowAnchor = new GPoint(9, 2);
+		icon19.infoShadowAnchor = new GPoint(18, 25);
+		marker19 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon19});
+		html19 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba19= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/martin-wagne.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/martin-wagne.html" ><acronym title="Oberstufenzentrum">OSZ</acronym> Bautechnik 2</a></b><br />Gustav-Adolf-Str. 66<br />13086 Berlin<br /><br/><a href="http://www.oszbau2.de/" target="_top" >www.oszbau2.de/</a></div>');
+		tabb19= new GInfoWindowTab('Weiteres', '');
+		tabArray19 = new Array (taba19);
+		GEvent.addListener(marker19, 'click', function() {
+		  marker19.openInfoWindowHtml(html19,{maxWidth:150});
+		});
+		GEvent.addListener(marker19, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 19;
+		});
+		GEvent.addListener(marker19, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[19] = marker19;
+
+		GEvent.addListener(marker19, 'mouseover', function() {if (infoWindowId != 19)
+				marker19.openInfoWindowTabsHtml(tabArray19,{maxWidth:200});});
+			map.addOverlay(marker19);
+
+
+		lon = 13.3175725;
+    lat = 52.43029;
+    point = new GPoint(lon,lat);'Ostpreußendamm 40,###CITTY###, 12207 ';
+  	icon20 = new GIcon();
+    icon20.image = "";
+		icon20.iconSize = new GSize(18,18);
+		icon20.shadowSize = new GSize(37, 34);
+		icon20.iconAnchor = new GPoint(9, 18);
+		icon20.infoWindowAnchor = new GPoint(9, 2);
+		icon20.infoShadowAnchor = new GPoint(18, 25);
+		marker20 = new GMarker(point,{title:'1. Staatl. Fachschule f?r Sozialp?dagogik/Berufsfachschule f?r Sozialwesen Bismarckstr. 20 10625 Berlin  34506714'+'',icon:icon20});
+		html20 = '<div class=infoWindow><div class="tooltipImage"><img src="uploads/tx_locator/Logo_B?ro_1.gif" height="80px"/></div><br /><div class="displayRoute"><a href="ueber-die-oberstufenzentren/schulen.html?tx_locator_pi1%5Bdummy%5D=showMap&tx_locator_pi1%5Bmode%5D=showRoute&tx_locator_pi1%5BstartZipcode%5D=&tx_locator_pi1%5BstartCity%5D=&tx_locator_pi1%5BstartAddress%5D=&tx_locator_pi1%5BstartCountry%5D=&tx_locator_pi1%5BstartLat%5D=52.50581735&tx_locator_pi1%5BstartLon%5D=13.41790275&tx_locator_pi1%5Blat%5D=52.43029&tx_locator_pi1%5Blon%5D=13.3175725&tx_locator_pi1%5Bstorename%5D=OSZ%20B%C3%BCrowirtschaft%201&tx_locator_pi1%5Blink%5D=http%3A%2F%2Fwww.osz-buerowirtschaft-eins.de%2Findex.html&tx_locator_pi1%5Baddress%5D=Ostpreu%C3%9Fendamm%2040&tx_locator_pi1%5Bcity%5D=Berlin&tx_locator_pi1%5Bzipcode%5D=12207&tx_locator_pi1%5Bcountry%5D=&tx_locator_pi1%5Bdistance%5D=10%2C80" target="_top">Anfahrtsweg</a></div><br/><b><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top"><br /><acronym title="Oberstufenzentrum"><acronym title="Oberstufenzentrum">OSZ</acronym></acronym> B?rowirtschaft 1</a></b><br />Ostpreu?endamm 40<br />12207 Berlin,  <br />76890011</div>';
+		taba20= new GInfoWindowTab('Adresse', '<div class=infoWindow><div class="tooltipImage"><a href="ueber-osz-berlin/schulen/einzelansicht/schule/osz-buerowir-3.html" >Einzelansicht</a></div><br /><b><a href="ueber-osz-berlin/schulen/einzelansicht/schule/osz-buerowir-3.html" ><acronym title="Oberstufenzentrum">OSZ</acronym> Bürowirtschaft 1</a></b><br />Ostpreußendamm 40<br />12207 Berlin<br /><br/><a href="http://www.osz-buerowirtschaft-eins.de/index.html" target="_top" >www.osz-buerowirtschaft-eins.de/index.html</a></div>');
+		tabb20= new GInfoWindowTab('Weiteres', '');
+		tabArray20 = new Array (taba20);
+		GEvent.addListener(marker20, 'click', function() {
+		  marker20.openInfoWindowHtml(html20,{maxWidth:150});
+		});
+		GEvent.addListener(marker20, 'infowindowopen', function() {
+			//alert('open');
+			infoWindowId = 20;
+		});
+		GEvent.addListener(marker20, 'infowindowclose', function() {
+			//alert('close');
+			infoWindowId = -1;
+		});
+
+		gmarkers[20] = marker20;
+
+		GEvent.addListener(marker20, 'mouseover', function() {if (infoWindowId != 20)
+				marker20.openInfoWindowTabsHtml(tabArray20,{maxWidth:200});});
+			map.addOverlay(marker20);
+
+
+
+
+
+	function show_marker(id)
+	{
+		gmarkers[id].openInfoWindowHtml(htmls[id])
+	}
+
+} // load()
+
+	function openInfoWindow(i) {
+	    GEvent.trigger(gmarkers[i],'mouseover');
+	}
+
+
+
+
+/*]]>*/
+</script>
+							</div>
+<!-- ###TEMPLATE_LIST### end -->

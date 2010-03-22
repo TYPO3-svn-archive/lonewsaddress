@@ -1,0 +1,93 @@
+
+<h2>This Code was taken from Extension "Simple Google Sitemap"</h2>
+<!-- ###TEMPLATE_SINGLE### begin
+	This subpart is used to display single news items
+-->
+
+<script src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=###MAPKEY###" type="text/javascript" charset="utf-8"></script>
+	
+<script type="text/javascript" language="JavaScript">
+
+//<![CDATA[
+/*************************************************
+ * Created with GoogleMapAPI 2.5
+ * Author: Monte Ohrt <monte AT ohrt DOT com>
+ * Copyright 2005-2006 New Digital Group
+ * http://www.phpinsider.com/php/code/GoogleMapAPI/
+ *************************************************/
+var points = [];
+var markers = [];
+var counter = 0;
+var sidebar_html = "";
+var marker_html = [];
+var to_htmls = [];
+var from_htmls = [];
+var map = null;
+function load() {
+if (GBrowserIsCompatible()) {
+var mapObj = document.getElementById("zw_gmap_div");
+if (mapObj != "undefined" && mapObj != null) {
+map = new GMap2(document.getElementById("zw_gmap_div"));
+map.setCenter(new GLatLng(###LAT###, ###LNG###), ###ZOOM###, G_NORMAL_MAP);
+map.addControl(new GLargeMapControl());
+map.addControl(new GMapTypeControl());
+map.addControl(new GScaleControl());
+var point = new GLatLng(###LAT###, ###LNG###);
+var marker = createMarker(point,"###ADDRESS###, ###CITY###","<div id=\"gmapmarker\">###MINI_LOGO###<b>###NEWS_TITLE###</b><br /> ###ADDRESS###<br /> ###ZIP### ###CITY###<br /><\/div>", 0,"");
+map.addOverlay(marker);
+document.getElementById("sidebar_zw_gmap_div").innerHTML = "<ul class=\"gmapSidebar\">"+ sidebar_html +"<\/ul>";
+}
+} else {
+alert("Sorry, the Google Maps API is not compatible with this browser.");
+}
+}
+function createMarker(point, title, html, n, tooltip) {
+if(n >= 0) { n = -1; }
+var marker = new GMarker(point,{'title': tooltip});
+var tabFlag = isArray(html);
+if(!tabFlag) { html = [{"contentElem": html}]; }
+to_htmls[counter] = html[0].contentElem + '<form class="gmapDir" id="gmapDirTo" style="white-space: nowrap;" action="http://maps.google.com/maps" method="get" target="_blank">' +
+                     '<span class="gmapDirHead" id="gmapDirHeadTo">Wegbeschreibung: <strong>nach hier</strong> - <a href="javascript:fromhere(' + counter + ')">von hier</a></span>' +
+                     '<p class="gmapDirItem" id="gmapDirItemTo"><label for="gmapDirSaddr" class="gmapDirLabel" id="gmapDirLabelTo">Start-Adresse: (Strasse, Stadt)<br /></label>' +
+                     '<input type="text" size="40" maxlength="40" name="saddr" class="gmapTextBox" id="gmapDirSaddr" value="" onfocus="this.style.backgroundColor = \'#e0e0e0\';" onblur="this.style.backgroundColor = \'#ffffff\';" />' +
+                     '<span class="gmapDirBtns" id="gmapDirBtnsTo"><input value="suchen" type="submit" class="gmapDirButton" id="gmapDirButtonTo" /></span></p>' +
+                     '<input type="hidden" name="daddr" value="' +
+                     point.y + ',' + point.x + "(" + title.replace(new RegExp(/"/g),'&quot;') + ")" + '" /></form>';
+                      from_htmls[counter] = html[0].contentElem + '<p /><form class="gmapDir" id="gmapDirFrom" style="white-space: nowrap;" action="http://maps.google.com/maps" method="get" target="_blank">' +
+                     '<span class="gmapDirHead" id="gmapDirHeadFrom">Wegbeschreibung: <a href="javascript:tohere(' + counter + ')">nach hier</a> - <strong>von hier</strong></span>' +
+                     '<p class="gmapDirItem" id="gmapDirItemFrom"><label for="gmapDirSaddr" class="gmapDirLabel" id="gmapDirLabelFrom">Ziel-Adresse: (Strasse, Stadt)<br /></label>' +
+                     '<input type="text" size="40" maxlength="40" name="daddr" class="gmapTextBox" id="gmapDirSaddr" value="" onfocus="this.style.backgroundColor = \'#e0e0e0\';" onblur="this.style.backgroundColor = \'#ffffff\';" />' +
+                     '<span class="gmapDirBtns" id="gmapDirBtnsFrom"><input value="suchen" type="submit" class="gmapDirButton" id="gmapDirButtonFrom" /></span></p>' +
+                     '<input type="hidden" name="saddr" value="' +
+                     point.y + ',' + point.x + encodeURIComponent("(" + title.replace(new RegExp(/"/g),'&quot;') + ")") + '" /></form>';
+                     html[0].contentElem = html[0].contentElem + '<p /><div id="gmapDirHead" class="gmapDir" style="white-space: nowrap;">Wegbeschreibung: <a href="javascript:tohere(' + counter + ')">nach hier</a> - <a href="javascript:fromhere(' + counter + ')">von hier</a></div>';
+if(!tabFlag) { html = html[0].contentElem; }if(isArray(html)) { GEvent.addListener(marker, "click", function() { marker.openInfoWindowTabsHtml(html); }); }
+else { GEvent.addListener(marker, "click", function() { marker.openInfoWindowHtml(html); }); }
+points[counter] = point;
+markers[counter] = marker;
+marker_html[counter] = html;
+sidebar_html += '<li class="gmapSidebarItem" id="gmapSidebarItem_'+ counter +'"><a href="javascript:click_sidebar(' + counter + ')">' + title + '<\/a><\/li>';
+counter++;
+return marker;
+}
+function isArray(a) {return isObject(a) && a.constructor == Array;}
+function isObject(a) {return (a && typeof a == 'object') || isFunction(a);}
+function isFunction(a) {return typeof a == 'function';}
+function click_sidebar(idx) {
+  if(isArray(marker_html[idx])) { markers[idx].openInfoWindowTabsHtml(marker_html[idx]); }
+  else { markers[idx].openInfoWindowHtml(marker_html[idx]); }
+}
+function showInfoWindow(idx,html) {
+map.centerAtLatLng(points[idx]);
+markers[idx].openInfoWindowHtml(html);
+}
+function tohere(idx) {
+markers[idx].openInfoWindowHtml(to_htmls[idx]);
+}
+function fromhere(idx) {
+markers[idx].openInfoWindowHtml(from_htmls[idx]);
+}
+//]]>
+</script>
+
+<!-- ###TEMPLATE_SINGLE### end -->
