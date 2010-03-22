@@ -65,21 +65,12 @@ class tx_lonewsaddress_hook extends tslib_pibase {
 		$cObj = t3lib_div::makeInstance('tslib_cObj');
 		$cObj->data = $row; 
 			//	t3lib_div::debug($row);
-		if(is_array($addressConf['all.']['marks.']))
-		foreach($addressConf['all.']['marks.'] AS $marker => $cObject) {
+		if(is_array($addressConf['marks.']))
+		foreach($addressConf['marks.'] AS $marker => $cObject) {
 			if(strpos($marker, '.') == 0) {
-				$markerArray['###'.$marker.'###'] = $cObj->cObjGetSingle($cObject, $addressConf['all.']['marks.'][$marker.'.']);
+				$markerArray['###'.$marker.'###'] = $cObj->cObjGetSingle($cObject, $addressConf['marks.'][$marker.'.']);
 			}
 		}
-		
-    if ($this->pObj->config['code']=='SINGLE') {
-    	if(is_array($addressConf['single.']['marks.']))
-				foreach($addressConf['single.']['marks.'] AS $marker => $cObject) {
-					if(strpos($marker, '.') == 0) {
-						$markerArray['###'.$marker.'###'] = $cObj->cObjGetSingle($cObject, $addressConf['single.']['marks.'][$marker.'.']);
-					}
-				}
-    }
 	/*	$markerArray['###BERUFSFELD_SPEZIAL###']=$this->cObj->stdWrap($row['tx_lonewsaddress_bfeld'], $confLinks['bfeld.']);
 		$markerArray['###AUSBILDUNGSREIFE###']=$this->cObj->stdWrap($row['tx_lonewsaddress_areife'], $confLinks['areife.']);
 		$markerArray['###BERUFSAUSBILDUNG###']=$this->cObj->stdWrap($row['tx_lonewsaddress_baus'], $confLinks['baus.']);
